@@ -1,0 +1,360 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task and Attendance Management</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f4;
+            margin: 0;
+        }
+        .navbar {
+            background-color: #007bff;
+            padding: 15px;
+            color: white;
+            display: flex;
+            align-items: center;
+        }
+        .navbar img {
+            width: 40px;
+            margin-right: 10px;
+        }
+        .container {
+            display: flex;
+            max-width: 1200px;
+            margin: 20px auto;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+        }
+        h2, h3 {
+            text-align: center;
+        }
+        .sidebar {
+            width: 25%;
+            padding: 20px;
+            background-color: #007bff;
+            color: white;
+            border-radius: 8px 0 0 8px;
+        }
+        .sidebar button {
+            width: 100%;
+            background-color: transparent;
+            color: white;
+            border: none;
+            text-align: left;
+            padding: 10px;
+            border-radius: 4px;
+            transition: background 0.3s;
+        }
+        .sidebar button:hover {
+            background-color: rgba(255, 255, 255, 0.1);
+        }
+        .main {
+            width: 75%;
+            padding: 20px;
+        }
+        .hidden {
+            display: none;
+        }
+        .error {
+            color: red;
+            text-align: center;
+        }
+        ul {
+            list-style-type: none;
+            padding: 0;
+        }
+        li {
+            margin: 5px 0;
+            padding: 10px;
+            background: #e9ecef;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        button.complete {
+            background-color: #28a745;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            padding: 5px 10px;
+            cursor: pointer;
+        }
+        button.complete:hover {
+            background-color: #218838;
+        }
+        .no-tasks {
+            text-align: center;
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .chart-container {
+            width: 100%;
+            height: 400px;
+            margin-top: 20px;
+            display: none; /* Initially hidden */
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> <!-- Include Chart.js -->
+</head>
+<body>
+    <div class="navbar">
+        <img src="https://static.vecteezy.com/system/resources/previews/000/392/973/original/modern-company-logo-design-vector.jpg" alt="Company Logo"> <!-- Replace with your logo URL -->
+        <h1>Attendance and Task Manager</h1>
+    </div>
+    <div id="app">
+        <div id="dashboard" class="container">
+            <div class="sidebar">
+                <h3>Dashboard</h3>
+                <button id="adminButton">🏢 Admin (Rahul)</button>
+                <button id="rahulButton">👤 Rahul</button>
+                <button id="gurmanButton">👤 Gurman</button>
+                <button id="dilshaanButton">👤 Dilshaan</button>
+                <button id="ayushButton">👤 Ayush</button>
+                <button id="chetanButton">👤 Chetan</button>
+            </div>
+            <div class="main">
+                <div id="adminSection" class="hidden">
+                    <h3>Admin Panel</h3>
+                    <input type="text" id="taskInput" placeholder="Add Task" required>
+                    <select id="employeeSelect">
+                        <option value="rahul">Rahul</option>
+                        <option value="gurman">Gurman</option>
+                        <option value="dilshaan">Dilshaan</option>
+                        <option value="ayush">Ayush</option>
+                        <option value="chetan">Chetan</option>
+                    </select>
+                    <button id="addTaskButton">Assign Task</button>
+                    <ul id="taskList"></ul>
+                    <h4>Mark Attendance</h4>
+                    <input type="date" id="attendanceDate">
+                    <select id="attendanceSelect">
+                        <option value="rahul">Rahul</option>
+                        <option value="gurman">Gurman</option>
+                        <option value="dilshaan">Dilshaan</option>
+                        <option value="ayush">Ayush</option>
+                        <option value="chetan">Chetan</option>
+                    </select>
+                    <button id="markAttendanceAdmin">Mark Attendance</button>
+                    <h4>Marked Attendance</h4>
+                    <ul id="attendanceList"></ul>
+
+                    <!-- Chart Section -->
+                    <div class="chart-container">
+                        <canvas id="taskChart"></canvas>
+                    </div>
+                    <button id="toggleChartButton">Show Chart</button> <!-- Toggle button -->
+                </div>
+
+                <div id="employeeSection" class="hidden">
+                    <h3 id="employeeTitle"></h3>
+                    <ul id="employeeTaskList"></ul>
+                    <div id="noTasksMessage" class="no-tasks hidden">No tasks assigned.</div>
+
+                    <!-- Chart Section -->
+                    <div class="chart-container">
+                        <canvas id="taskChart"></canvas>
+                    </div>
+                    <button id="toggleChartButton">Show Chart</button> <!-- Toggle button -->
+                    
+                    <input type="date" id="employeeAttendanceDate">
+                    <button id="markAttendanceEmployee">Mark Attendance</button>
+                    <ul id="employeeAttendanceList"></ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script>
+        const users = [
+            { username: "rahul", role: "admin" },
+            { username: "gurman", role: "employee" },
+            { username: "dilshaan", role: "employee" },
+            { username: "ayush", role: "employee" },
+            { username: "chetan", role: "employee" }
+        ];
+
+        let tasks = JSON.parse(localStorage.getItem('tasks')) || []; // Load tasks from localStorage
+        let attendanceRecords = JSON.parse(localStorage.getItem('attendanceRecords')) || []; // Load attendance from localStorage
+
+        // Load Admin and Employee Sections
+        document.getElementById('adminButton').addEventListener('click', function() {
+            document.getElementById('adminSection').classList.remove('hidden');
+            document.getElementById('employeeSection').classList.add('hidden');
+            loadTasks();
+            loadAttendance();
+            updateChart(); // Update the chart when the admin panel is loaded
+        });
+
+        ['rahul', 'gurman', 'dilshaan', 'ayush', 'chetan'].forEach(employee => {
+            document.getElementById(`${employee}Button`).addEventListener('click', function() {
+                document.getElementById('employeeSection').classList.remove('hidden');
+                document.getElementById('adminSection').classList.add('hidden');
+                displayEmployeeTasks(employee);
+                loadEmployeeAttendance(employee); // Display attendance for employee
+                document.getElementById('employeeTitle').textContent = `${employee.charAt(0).toUpperCase() + employee.slice(1)}'s Tasks`;
+            });
+        });
+
+        // Assign Tasks
+        document.getElementById('addTaskButton').addEventListener('click', function() {
+            const taskDescription = document.getElementById('taskInput').value;
+            const assignedEmployee = document.getElementById('employeeSelect').value;
+            if (taskDescription) {
+                const task = { id: Date.now(), description: taskDescription, assignedTo: assignedEmployee, completed: false };
+                tasks.push(task);
+                localStorage.setItem('tasks', JSON.stringify(tasks)); // Save tasks to localStorage
+                loadTasks();
+                document.getElementById('taskInput').value = '';
+                updateChart(); // Update the chart when a task is added
+            }
+        });
+
+        function loadTasks() {
+            const taskList = document.getElementById('taskList');
+            taskList.innerHTML = '';
+            // Filter out completed tasks for the admin view
+            const visibleTasks = tasks.filter(task => !task.completed);
+            visibleTasks.forEach(task => {
+                const li = document.createElement('li');
+                li.textContent = `${task.description} (Assigned to: ${task.assignedTo})`;
+                const completeButton = document.createElement('button');
+                completeButton.textContent = 'Complete';
+                completeButton.classList.add('complete');
+                completeButton.addEventListener('click', function() {
+                    task.completed = true; // Mark task as completed
+                    localStorage.setItem('tasks', JSON.stringify(tasks)); // Update tasks in localStorage
+                    loadTasks(); // Reload tasks for admin
+                    updateChart(); // Update the chart when a task is completed
+                });
+                li.appendChild(completeButton);
+                taskList.appendChild(li);
+            });
+
+            // Show "No tasks assigned" message if there are no visible tasks
+            if (visibleTasks.length === 0) {
+                const noTasksMessage = document.createElement('div');
+                noTasksMessage.className = 'no-tasks';
+                noTasksMessage.textContent = 'No tasks assigned.';
+                taskList.appendChild(noTasksMessage);
+            }
+        }
+
+        // Load Attendance
+        function loadAttendance() {
+            const attendanceList = document.getElementById('attendanceList');
+            attendanceList.innerHTML = '';
+            attendanceRecords.forEach(record => {
+                const li = document.createElement('li');
+                li.textContent = `${record.date} - ${record.username}`;
+                attendanceList.appendChild(li);
+            });
+        }
+
+        // Display Tasks for Employee
+        function displayEmployeeTasks(employee) {
+            const employeeTaskList = document.getElementById('employeeTaskList');
+            employeeTaskList.innerHTML = '';
+            const employeeTasks = tasks.filter(task => task.assignedTo === employee && !task.completed);
+            employeeTasks.forEach(task => {
+                const li = document.createElement('li');
+                li.textContent = task.description;
+                const completeButton = document.createElement('button');
+                completeButton.textContent = 'Complete';
+                completeButton.classList.add('complete');
+                completeButton.addEventListener('click', function() {
+                    task.completed = true; // Mark task as completed
+                    localStorage.setItem('tasks', JSON.stringify(tasks)); // Update tasks in localStorage
+                    displayEmployeeTasks(employee); // Reload employee tasks
+                    updateChart(); // Update the chart when a task is completed
+                });
+                li.appendChild(completeButton);
+                employeeTaskList.appendChild(li);
+            });
+
+            // Show "No tasks assigned" message if there are no tasks for the employee
+            if (employeeTasks.length === 0) {
+                document.getElementById('noTasksMessage').classList.remove('hidden');
+            } else {
+                document.getElementById('noTasksMessage').classList.add('hidden');
+            }
+        }
+
+        // Load Employee Attendance
+        function loadEmployeeAttendance(employee) {
+            const employeeAttendanceList = document.getElementById('employeeAttendanceList');
+            employeeAttendanceList.innerHTML = '';
+            const employeeAttendance = attendanceRecords.filter(record => record.username === employee);
+            employeeAttendance.forEach(record => {
+                const li = document.createElement('li');
+                li.textContent = `${record.date}`;
+                employeeAttendanceList.appendChild(li);
+            });
+        }
+
+        // Mark Attendance for Admin
+        document.getElementById('markAttendanceAdmin').addEventListener('click', function() {
+            const attendanceDate = document.getElementById('attendanceDate').value;
+            const attendanceEmployee = document.getElementById('attendanceSelect').value;
+            if (attendanceDate) {
+                const attendanceRecord = { date: attendanceDate, username: attendanceEmployee };
+                attendanceRecords.push(attendanceRecord);
+                localStorage.setItem('attendanceRecords', JSON.stringify(attendanceRecords)); // Save attendance to localStorage
+                loadAttendance();
+                document.getElementById('attendanceDate').value = '';
+            }
+        });
+
+        // Mark Attendance for Employee
+        document.getElementById('markAttendanceEmployee').addEventListener('click', function() {
+            const attendanceDate = document.getElementById('employeeAttendanceDate').value;
+            const currentEmployee = document.getElementById('employeeTitle').textContent.split("'")[0].toLowerCase();
+            if (attendanceDate) {
+                const attendanceRecord = { date: attendanceDate, username: currentEmployee };
+                attendanceRecords.push(attendanceRecord);
+                localStorage.setItem('attendanceRecords', JSON.stringify(attendanceRecords)); // Save attendance to localStorage
+                loadEmployeeAttendance(currentEmployee);
+                document.getElementById('employeeAttendanceDate').value = '';
+            }
+        });
+
+        // Chart Update Function
+        function updateChart() {
+            const completedTasks = tasks.filter(task => task.completed).length;
+            const totalTasks = tasks.length;
+            const ctx = document.getElementById('taskChart').getContext('2d');
+            const chartData = {
+                labels: ['Completed Tasks', 'Pending Tasks'],
+                datasets: [{
+                    data: [completedTasks, totalTasks - completedTasks],
+                    backgroundColor: ['#28a745', '#dc3545'],
+                }]
+            };
+
+            // Check if chart already exists to avoid creating multiple charts
+            if (window.myChart) {
+                window.myChart.data = chartData;
+                window.myChart.update();
+            } else {
+                window.myChart = new Chart(ctx, {
+                    type: 'pie',
+                    data: chartData,
+                });
+            }
+
+            // Show the chart container
+            document.querySelector('.chart-container').style.display = 'block';
+        }
+
+        // Toggle Chart Visibility
+        document.getElementById('toggleChartButton').addEventListener('click', function() {
+            const chartContainer = document.querySelector('.chart-container');
+            chartContainer.style.display = chartContainer.style.display === 'none' ? 'block' : 'none';
+        });
+    </script>
+</body>
+</html>
